@@ -6,15 +6,13 @@
 # Started on: 20161020(yyyymmdd)
 # Project   : exerciseML(Exercise for Machine Learning)	
 
+import glob, os, shutil, time
+
 from PIL import Image
 
 sampleDir = ".\\samples\\"
-print dir(Image)
-openedImg = Image.open(sampleDir + "sample0.jpg", "r")
-loadedImg = openedImg.load()
-pixels = list(openedImg.getdata())
-print openedImg.size
-print loadedImg[2000-1,1125-1]
+cddDir = ".\\cdds\\"
+img = Image.open(sampleDir + "sample01.jpg", "r")
 
 filterVec = [
 	-1,-1,-1,
@@ -22,39 +20,70 @@ filterVec = [
 	-1,-1,-1
 ]
 
-filterWidth = 100
-scale = 33
-anchors = [
-	(anchorX*filterWidth,anchorY*filterWidth) 
-	for anchorX in range(2000/filterWidth)
-	for anchorY in range(1125/filterWidth)
-]
-print anchors
+scale = 21
 
+def genAnchors(img, scale, filterVec):
+	imgWidth = img.size[0]
+	imgHeight= img.size[1]
+	anchorIntv = int(scale*len(filterVec)**0.5)
+	anchors = [
+		(anchorX, anchorY) 
+		for anchorX in range(0, imgWidth, anchorIntv)[:-1]
+		for anchorY in range(0, imgHeight, anchorIntv)[:-1]
+	]
+	return anchors
 
-for anchorVec in anchors:
+def genScope(anchor, scale, filterVec):
+	anchorIntv = int(scale*len(filterVec)**0.5)
 	coors = [
 		(xcoor,ycoor)
-		for xcoor in range(anchorVec[0],anchorVec[0]+(filterWidth/scale)*scale,scale)
-		for ycoor in range(anchorVec[1],anchorVec[1]+(filterWidth/scale)*scale,scale)
+		for xcoor in range(anchor[0], anchor[0]+anchorIntv, scale)
+		for ycoor in range(anchor[1], anchor[1]+anchorIntv, scale)
 	]
-	#print coors
-	obsVec = []
-	for v in coors:
-		sumR = 0
-		for i in range(scale):
-			sumR += loadedImg[v[0]+i,v[1]+i][0]
-		obsVec.append(sumR)
+	return coors
 
-	#print filterVec
-	#print obsVec
+def genObsVec(img, scope):
+	imgLoaded = img.load()
+	obsVec = []
+	for v in scope:
+		sumRed = 0
+		for i in range(scale):
+			for j in range(scale):
+				sumRed += -(imgLoaded[v[0]+i,v[1]+i][0]/255.0)
+		sumRedAdjusted = sumRed/(scale**2)
+		obsVec.append(sumRedAdjusted)
+	return obsVec
+
+def applyFilter(filterVec, obsVec):
 	indicator = 0
 	for v in zip(filterVec, obsVec):
-		#print v[0], "  ", v[1]
 		indicator += v[0]*v[1]
-	print str(indicator) + "  " + str(anchorVec)
+	return indicator
 
-def applyFilter(filterName, scale):
-	pass
-	#for xcor in range(2000/scale):	
-	#filterName
+def flushCddDir():
+	fileList = [ cddDir + f for f in os.listdir(".\\cdds\\") if f.endswith(".jpg") ]
+	for f in fileList:
+		os.remove(f)
+
+def cropResult(img, indicator):
+	anchorIntv = int(scale*len(filterVec)**0.5)
+	xcoorUL = anchor[0]
+	ycoorUL = anchor[1]
+	xcoorLD = anchor[0] + anchorIntv
+	ycoorLD = anchor[1] + anchorIntv
+	croppingArea = (xcoorUL, ycoorUL, xcoorLD, ycoorLD)
+	img.crop(croppingArea).save(cddDir + str(indicator) +".jpg")
+
+# initialising cdds
+flushCddDir()
+
+anchors = genAnchors(img, scale, filterVec)
+for anchor in anchors:
+	scope = genScope(anchor, scale, filterVec)
+	obsVec = genObsVec(img, scope)
+	indicator = applyFilter(filterVec, obsVec)
+	print str(indicator).ljust(20) + str(anchor).rjust(15)
+
+	# saving cuts of interesting trials
+	if indicator != 0:
+		cropResult(img, indicator)
