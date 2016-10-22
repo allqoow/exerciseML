@@ -20,16 +20,18 @@ filterVec = [
 	-1,-1,-1
 ]
 
-scale = 21
+scale = 40
+
+print img.size
 
 def genAnchors(img, scale, filterVec):
 	imgWidth = img.size[0]
 	imgHeight= img.size[1]
-	anchorIntv = int(scale*len(filterVec)**0.5)
+	padding = int(len(filterVec)**0.5)
 	anchors = [
 		(anchorX, anchorY) 
-		for anchorX in range(0, imgWidth, anchorIntv)[:-1]
-		for anchorY in range(0, imgHeight, anchorIntv)[:-1]
+		for anchorX in range(0, imgWidth , scale)[:-padding]
+		for anchorY in range(0, imgHeight, scale)[:-padding]
 	]
 	return anchors
 
@@ -78,6 +80,7 @@ def cropResult(img, indicator):
 flushCddDir()
 
 anchors = genAnchors(img, scale, filterVec)
+print anchors
 for anchor in anchors:
 	scope = genScope(anchor, scale, filterVec)
 	obsVec = genObsVec(img, scope)
@@ -85,5 +88,5 @@ for anchor in anchors:
 	print str(indicator).ljust(20) + str(anchor).rjust(15)
 
 	# saving cuts of interesting trials
-	if indicator != 0:
+	if indicator > 0:
 		cropResult(img, indicator)
