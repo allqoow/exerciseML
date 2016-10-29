@@ -10,6 +10,9 @@ import glob, os, shutil, time
 
 from PIL import Image
 
+class Week01():
+	pass
+
 sampleDir = ".\\samples\\"
 cddDir = ".\\cdds\\"
 img = Image.open(sampleDir + "sample01.jpg", "r")
